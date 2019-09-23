@@ -50,6 +50,7 @@ then
     # for some reason these two options are necessary on jdk6 on Ubuntu
     #   accord to the docs they are not necessary, but otw jconsole cannot
     #   do a local attach
+    #声明zookeeper启动类 org.apache.zookeeper.server.quorum.QuorumPeerMain
     ZOOMAIN="-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.local.only=$JMXLOCALONLY org.apache.zookeeper.server.quorum.QuorumPeerMain"
   else
     if [ "x$JMXAUTH" = "x" ]
@@ -147,6 +148,7 @@ ZOO_LOG_FILE=zookeeper-$USER-server-$HOSTNAME.log
 _ZOO_DAEMON_OUT="$ZOO_LOG_DIR/zookeeper-$USER-server-$HOSTNAME.out"
 
 case $1 in
+# 启动入口
 start)
     echo  -n "Starting zookeeper ... "
     if [ -f "$ZOOPIDFILE" ]; then

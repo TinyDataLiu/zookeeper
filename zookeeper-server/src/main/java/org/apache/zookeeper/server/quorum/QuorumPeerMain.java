@@ -18,9 +18,6 @@
 
 package org.apache.zookeeper.server.quorum;
 
-import java.io.IOException;
-import javax.management.JMException;
-import javax.security.sasl.SaslException;
 import org.apache.yetus.audience.InterfaceAudience;
 import org.apache.zookeeper.jmx.ManagedUtil;
 import org.apache.zookeeper.metrics.MetricsProvider;
@@ -40,10 +37,13 @@ import org.apache.zookeeper.server.util.JvmPauseMonitor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.management.JMException;
+import javax.security.sasl.SaslException;
+import java.io.IOException;
+
 /**
- *
  * <h2>Configuration file</h2>
- *
+ * <p>
  * When the main() method of this class is used to start the program, the first
  * argument is used as a path to the config file, which will be used to obtain
  * configuration information. This file is a Properties file, so keys and
@@ -66,7 +66,7 @@ import org.slf4j.LoggerFactory;
  * </ol>
  * In addition to the config file. There is a file in the data directory called
  * "myid" that contains the server id as an ASCII decimal value.
- *
+ * zk 的启动类
  */
 @InterfaceAudience.Public
 public class QuorumPeerMain {
@@ -75,16 +75,19 @@ public class QuorumPeerMain {
 
     private static final String USAGE = "Usage: QuorumPeerMain configfile";
 
+    /*TODO 仲裁人 应该就是选举算法的实现在这里*/
     protected QuorumPeer quorumPeer;
 
     /**
      * To start the replicated server specify the configuration file name on
      * the command line.
-     * @param args path to the configfile
+     *
+     * @param args path to the configfile   配置文件路径
      */
     public static void main(String[] args) {
         QuorumPeerMain main = new QuorumPeerMain();
         try {
+            //初始化并且运行服务
             main.initializeAndRun(args);
         } catch (IllegalArgumentException e) {
             LOG.error("Invalid arguments, exiting abnormally", e);
@@ -111,31 +114,49 @@ public class QuorumPeerMain {
         System.exit(ExitCode.EXECUTION_FINISHED.getValue());
     }
 
+    /**
+     * 初始化并且运行zk server
+     *
+     * @param args 初始化参数，zoo.cfg
+     * @throws ConfigException
+     * @throws IOException
+     * @throws AdminServerException
+     */
     protected void initializeAndRun(String[] args) throws ConfigException, IOException, AdminServerException {
+        //配置文件解析
         QuorumPeerConfig config = new QuorumPeerConfig();
         if (args.length == 1) {
             config.parse(args[0]);
         }
-
         // Start and schedule the the purge task
-        DatadirCleanupManager purgeMgr = new DatadirCleanupManager(
-            config.getDataDir(),
-            config.getDataLogDir(),
-            config.getSnapRetainCount(),
-            config.getPurgeInterval());
+        // 一个定时任务
+        DatadirCleanupManager purgeMgr = new DatadirCleanupManager(config.getDataDir(),
+                config.getDataLogDir(),
+                config.getSnapRetainCount(),
+                config.getPurgeInterval());
         purgeMgr.start();
 
         if (args.length == 1 && config.isDistributed()) {
+            //集群化的启动
             runFromConfig(config);
         } else {
             LOG.warn("Either no config or no quorum defined in config, running " + " in standalone mode");
             // there is only server in the quorum -- run as standalone
+            // 非集群化的启动
             ZooKeeperServerMain.main(args);
         }
     }
 
+    /**
+     * 启动zk 集群
+     *
+     * @param config zoo.cfg
+     * @throws IOException
+     * @throws AdminServerException
+     */
     public void runFromConfig(QuorumPeerConfig config) throws IOException, AdminServerException {
         try {
+            //注册mbean
             ManagedUtil.registerLog4jMBeans();
         } catch (JMException e) {
             LOG.warn("Unable to register log4j JMX control", e);
@@ -145,8 +166,8 @@ public class QuorumPeerMain {
         MetricsProvider metricsProvider;
         try {
             metricsProvider = MetricsProviderBootstrap.startMetricsProvider(
-                config.getMetricsProviderClassName(),
-                config.getMetricsProviderConfiguration());
+                    config.getMetricsProviderClassName(),
+                    config.getMetricsProviderConfiguration());
         } catch (MetricsProviderLifeCycleException error) {
             throw new IOException("Cannot boot MetricsProvider " + config.getMetricsProviderClassName(), error);
         }
@@ -214,6 +235,7 @@ public class QuorumPeerMain {
                 quorumPeer.setJvmPauseMonitor(new JvmPauseMonitor(config));
             }
 
+            //
             quorumPeer.start();
             quorumPeer.join();
         } catch (InterruptedException e) {
