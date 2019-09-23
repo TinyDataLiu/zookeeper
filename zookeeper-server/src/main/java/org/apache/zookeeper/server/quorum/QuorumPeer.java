@@ -1013,6 +1013,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
         if (!getView().containsKey(myid)) {
             throw new RuntimeException("My id " + myid + " not in the peer list");
         }
+        //加载本地状态
         loadDataBase();
         startServerCnxnFactory();
         try {
@@ -1021,6 +1022,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
             LOG.warn("Problem starting AdminServer", e);
             System.out.println(e);
         }
+        //开始Leander 选举
         startLeaderElection();
         startJvmPauseMonitor();
         super.start();
@@ -1080,7 +1082,14 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
 
     public synchronized void startLeaderElection() {
         try {
+            //判断是不是在竞选状态
             if (getPeerState() == ServerState.LOOKING) {
+                //创建一个选票信息
+                /**
+                 *  myid : 所属服务器的ID
+                 *  zxid : 事物ID
+                 *  epoch: 时钟周期每轮选举都会自动递增 + 1
+                 */
                 currentVote = new Vote(myid, getLastLoggedZxid(), getCurrentEpoch());
             }
         } catch (IOException e) {
