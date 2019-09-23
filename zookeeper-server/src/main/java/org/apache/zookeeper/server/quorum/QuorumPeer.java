@@ -83,6 +83,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.apache.zookeeper.common.NetUtils.formatInetAddr;
 
 /**
+ * 选举算法管理器维护三个状态  Leader election：选举状态 Follower状态 Leader状态
  * This class manages the quorum protocol. There are three states this server
  * can be in:
  * <ol>
@@ -931,7 +932,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
         }
     }
 
-    private int electionType;
+    private int electionType; //默认是只是0
 
     Election electionAlg;
 
@@ -1013,8 +1014,9 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
         if (!getView().containsKey(myid)) {
             throw new RuntimeException("My id " + myid + " not in the peer list");
         }
-        //加载本地状态
+        //加载本地数据库
         loadDataBase();
+        //启动一个
         startServerCnxnFactory();
         try {
             adminServer.start();
@@ -1080,6 +1082,9 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
         responder.interrupt();
     }
 
+    /**
+     * 开始竞选
+     */
     public synchronized void startLeaderElection() {
         try {
             //判断是不是在竞选状态
@@ -1097,6 +1102,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
             re.setStackTrace(e.getStackTrace());
             throw re;
         }
+
 
         this.electionAlg = createElectionAlgorithm(electionType);
     }
@@ -1208,10 +1214,16 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
         return new Observer(this, new ObserverZooKeeperServer(logFactory, this, this.zkDb));
     }
 
+
+    /**
+     * 创建选举算法
+     *
+     * @param electionAlgorithm
+     * @return
+     */
     @SuppressWarnings("deprecation")
     protected Election createElectionAlgorithm(int electionAlgorithm) {
         Election le = null;
-
         //TODO: use a factory rather than a switch
         switch (electionAlgorithm) {
             case 1:
@@ -1230,6 +1242,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
                 QuorumCnxManager.Listener listener = qcm.listener;
                 if (listener != null) {
                     listener.start();
+                    //创建一个选举的算法
                     FastLeaderElection fle = new FastLeaderElection(this, qcm);
                     fle.start();
                     le = fle;
